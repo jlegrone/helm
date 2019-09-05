@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"helm.sh/helm/pkg/kube"
 	"helm.sh/helm/pkg/release"
 )
 
@@ -120,7 +121,35 @@ func (cfg *Configuration) deleteHookByPolicy(h *release.Hook, policy release.Hoo
 			return errors.New(joinErrors(errs))
 		}
 	}
+	if h.Kind == "Job" && len(h.DeletePolicies) == 0 {
+		resources, err := cfg.KubeClient.Build(bytes.NewBufferString(h.Manifest))
+		if err != nil {
+			return errors.Wrapf(err, "unable to build kubernetes object for deleting hook %s", h.Path)
+		}
+		_, errs := cfg.KubeClient.Delete(resources)
+		return errors.New(joinErrors(errs))
+	}
 	return nil
+}
+
+// resourcesToDeleteByPolicy deletes a hook if the hook policy instructs it to
+func (cfg *Configuration) resourcesToDeleteByPolicy(rl *release.Release, policy release.HookDeletePolicy) (kube.ResourceList, error) {
+	resourcesToDelete := kube.ResourceList{}
+	if hookHasDeletePolicy(h, policy) {
+		res, err := cfg.KubeClient.Build(bytes.NewBufferString(h.Manifest))
+		if err != nil {
+			return resourcesToDelete, err
+		}
+		resourcesToDelete = append(resourcesToDelete, res...)
+	}
+	if h.Kind == "Job" && len(h.DeletePolicies) == 0 {
+		res, err := cfg.KubeClient.Build(bytes.NewBufferString(h.Manifest))
+		if err != nil {
+			return resourcesToDelete, err
+		}
+		resourcesToDelete = append(resourcesToDelete, res...)
+	}
+	return resourcesToDelete, nil
 }
 
 // hookHasDeletePolicy determines whether the defined hook deletion policy matches the hook deletion polices

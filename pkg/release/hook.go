@@ -62,6 +62,8 @@ const HookDeleteAnnotation = "helm.sh/hook-delete-policy"
 // Hook defines a hook object.
 type Hook struct {
 	Name string `json:"name,omitempty"`
+	// Group is the Kubernetes group.
+	Group string `json:"group,omitempty"`
 	// Kind is the Kubernetes kind.
 	Kind string `json:"kind,omitempty"`
 	// Path is the chart-relative path to the template.
